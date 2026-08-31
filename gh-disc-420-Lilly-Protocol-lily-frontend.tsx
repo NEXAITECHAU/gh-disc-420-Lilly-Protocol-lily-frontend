@@ -1,41 +1,44 @@
 // __tests__/route-groups-layout.test.tsx
 import { render, screen } from '@testing-library/react';
-import { AppRouterCacheProvider } from '@mui/material-nextjs/appRouter';
-import { Roboto } from 'next/font/google';
-import { ReactNode } from 'react';
+import { AppRouter } from 'next-server/dist/server/app-renderer';
+import React from 'react';
 
-// Mock the layout and page components to test their composition
-// In a real app, these would be imported from your actual route group structure
-const MockLayout = ({ children }: { children: ReactNode }) => (
-  <div data-testid="mock-layout">
-    <header>Layout Header</header>
-    <main>{children}</main>
-    <footer>Layout Footer</footer>
-  </div>
-);
+// Mock Next.js internals
+jest.mock('next/navigation', () => ({
+  usePathname: () => '/dashboard/settings',
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    prefetch: jest.fn(),
+  }),
+}));
 
-const MockPage = () => <div data-testid="mock-page">Route Group Page Content</div>;
+// Mock the actual route group page and layout
+jest.mock('@/app/(dashboard)/layout', () => ({
+  default: function DashboardLayout({ children }: { children: React.ReactNode }) {
+    return <div data-testid="mock-dashboard-layout">{children}</div>;
+  },
+}));
 
-// Test component that simulates route group layout composition
-const RouteGroupWithLayout = () => {
-  return (
-    <AppRouterCacheProvider>
-      <MockLayout>
-        <MockPage />
-      </MockLayout>
-    </AppRouterCacheProvider>
-  );
-};
+jest.mock('@/app/(dashboard)/settings/page', () => ({
+  default: function SettingsPage() {
+    return <div data-testid="mock-settings-content">Settings</div>;
+  },
+}));
 
-test('route groups render inside their layout', () => {
-  render(<RouteGroupWithLayout />);
-  
-  // Verify layout structure is present
-  expect(screen.getByTestId('mock-layout')).toBeInTheDocument();
-  expect(screen.getByText('Layout Header')).toBeInTheDocument();
-  expect(screen.getByText('Layout Footer')).toBeInTheDocument();
-  
-  // Verify page content is rendered inside the layout
-  expect(screen.getByTestId('mock-page')).toBeInTheDocument();
-  expect(screen.getByText('Route Group Page Content')).toBeInTheDocument();
+// Simulate rendering a route group inside its layout
+describe('Route Groups Layout Smoke Test', () => {
+  it('renders route group content inside its layout', () => {
+    const Layout = require('@/app/(dashboard)/layout').default;
+    const Page = require('@/app/(dashboard)/settings/page').default;
+
+    render(
+      <Layout>
+        <Page />
+      </Layout>
+    );
+
+    expect(screen.getByTestId('mock-dashboard-layout')).toBeInTheDocument();
+    expect(screen.getByText('Settings')).toBeInTheDocument();
+  });
 });
